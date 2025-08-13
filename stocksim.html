@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>StockSim — Single‑file Stock Market Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #121621;
+      --panel-2: #171c29;
+      --text: #e8eefc;
+      --muted: #b0bdd5;
+      --accent: #5cc8ff;
+      --up: #16c784;
+      --down: #ff4d4f;
+      --warn: #ffd166;
+      --border: #24304a;
+      --shadow: rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: linear-gradient(180deg, #0a0d14, #0a0d14 200px, #0b0d12 100%);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(10, 13, 20, 0.85);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 16px 32px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+      color: #eaf2ff;
+    }
+    .badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--panel);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px var(--shadow);
+      overflow: hidden;
+    }
+    .panel h2 {
+      font-size: 16px;
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0f1420, #0f1420 60%, transparent);
+    }
+    .panel .body {
+      padding: 12px 14px 16px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: 1; min-width: 120px; }
+    label {
+      font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px;
+      letter-spacing: 0.2px;
+    }
+    input[type="text"], input[type="number"], input[type="date"], select {
+      width: 100%;
+      background: #0a0f1a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      outline: none;
+    }
+    input::placeholder { color: #6f7b95; }
+    button {
+      background: linear-gradient(180deg, #1f6feb, #1d5fd7);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(31,111,235,0.25);
+      transition: transform 0.02s ease;
+      font-weight: 600;
+      letter-spacing: .2px;
+    }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    .ghost {
+      background: #0e1320;
+      border: 1px solid var(--border);
+      color: var(--text);
+      box-shadow: none;
+    }
+    .danger {
+      background: linear-gradient(180deg, #ff4d4f, #e64547);
+      box-shadow: 0 4px 18px rgba(255,77,79,0.25);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill {
+      padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); color: var(--muted); background: #0e1320;
+    }
+    .stat {
+      display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #0a0f1a;
+    }
+    .stat .k { font-size: 12px; color: var(--muted); }
+    .stat .v { font-size: 18px; font-weight: 700; }
+    .green { color: var(--up); }
+    .red { color: var(--down); }
+    .muted { color: var(--muted); }
+    .sep { height: 1px; background: var(--border); margin: 12px 0; }
+    .badge-mini { font-size: 11px; color: var(--muted); padding: 2px 6px; border: 1px dashed var(--border); border-radius: 999px; }
+    .alert {
+      padding: 10px 12px; border: 1px solid #3a2f00; background: #151005; color: #ffd166; border-radius: 10px;
+    }
+    .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    canvas { max-height: 360px; }
+    .footer-note { color: #7d8aaa; font-size: 12px; }
+    .accent { color: var(--accent); }
+    .inline { display: inline-flex; gap: 8px; }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="flex" style="justify-content: space-between;">
+        <h1>StockSim <span class="badge">single‑file</span></h1>
+        <div class="inline">
+          <div class="inline">
+            <input id="apiKey" type="text" placeholder="Alpha Vantage API Key" style="width: 280px;">
+            <button class="ghost" id="saveKeyBtn">Save key</button>
+          </div>
+          <span class="badge-mini">Data: Alpha Vantage</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <div class="panel">
+        <h2>Portfolio overview</h2>
+        <div class="body">
+          <div class="row">
+            <div class="stat">
+              <div class="k">Starting cash</div>
+              <div class="v" id="statStartCash">$100,000.00</div>
+            </div>
+            <div class="stat">
+              <div class="k">Cash balance</div>
+              <div class="v" id="statCash">$100,000.00</div>
+            </div>
+            <div class="stat">
+              <div class="k">Equity value</div>
+              <div class="v" id="statEquity">$0.00</div>
+            </div>
+            <div class="stat">
+              <div class="k">Total value</div>
+              <div class="v" id="statTotal">$100,000.00</div>
+            </div>
+            <div class="stat">
+              <div class="k">Total P/L</div>
+              <div class="v" id="statPL"><span class="muted">$0.00 (0.00%)</span></div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="row">
+            <div>
+              <label>Starting cash</label>
+              <input id="startingCash" type="number" step="100" min="0" value="100000">
+            </div>
+            <div>
+              <label>Watchlist ticker</label>
+              <div class="inline" style="width:100%;">
+                <input id="watchTicker" type="text" placeholder="e.g., AAPL">
+                <button id="addWatchBtn">Add to watchlist</button>
+                <button class="ghost" id="refreshAllBtn" title="Refresh prices">Refresh</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="row">
+            <div style="flex:2;">
+              <label>Holdings</label>
+              <div style="overflow:auto;">
+                <table id="holdingsTable">
+                  <thead>
+                    <tr>
+                      <th>Ticker</th>
+                      <th class="num">Shares</th>
+                      <th class="num">Price</th>
+                      <th class="num">Value</th>
+                      <th class="num">Avg cost</th>
+                      <th class="num">P/L</th>
+                      <th class="num">P/L %</th>
+                      <th>Alert</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div style="flex:1;">
+              <label>Allocation</label>
+              <canvas id="pieAlloc"></canvas>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="row">
+            <div style="flex:2;">
+              <label>Watchlist</label>
+              <div style="overflow:auto;">
+                <table id="watchTable">
+                  <thead>
+                    <tr>
+                      <th>Ticker</th>
+                      <th class="num">Price</th>
+                      <th class="num">Change</th>
+                      <th class="num">Day %</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div style="flex:1;">
+              <div class="alert" id="alertBox" style="display:none;"></div>
+              <div class="footer-note">Alerts trigger when last price crosses your threshold. Keep this tab open.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Add transaction</h2>
+        <div class="body">
+          <div class="row">
+            <div>
+              <label>Ticker</label>
+              <input id="txTicker" type="text" placeholder="e.g., MSFT">
+            </div>
+            <div>
+              <label>Side</label>
+              <select id="txSide">
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+            </div>
+            <div>
+              <label>Quantity</label>
+              <input id="txQty" type="number" step="1" min="1" placeholder="e.g., 10">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Price (per share)</label>
+              <input id="txPrice" type="number" step="0.01" min="0" placeholder="e.g., 150.25">
+            </div>
+            <div>
+              <label>Date</label>
+              <input id="txDate" type="date">
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <button id="fetchLastBtn" class="ghost">Fetch last close</button>
+              <button id="addTxBtn">Add transaction</button>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <label>Transactions</label>
+          <div style="overflow:auto; max-height: 260px;">
+            <table id="txTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Ticker</th>
+                  <th>Side</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Price</th>
+                  <th class="num">Value</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <div class="sep" style="margin:16px 0;"></div>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Price chart with SMA 50/200</h2>
+        <div class="body">
+          <div class="row">
+            <div>
+              <label>Select ticker</label>
+              <select id="chartTicker"></select>
+            </div>
+            <div class="inline">
+              <button id="loadChartBtn" class="ghost">Load/Refresh chart</button>
+              <span class="badge-mini" id="chartInfo">—</span>
+            </div>
+          </div>
+          <canvas id="priceChart"></canvas>
+
+          <div class="sep"></div>
+          <div>
+            <label>AI-style insight</label>
+            <div id="aiInsight" class="footer-note">Select a ticker and load the chart to see insights.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Portfolio performance</h2>
+        <div class="body">
+          <div class="row">
+            <div class="inline">
+              <button id="rebuildPerfBtn" class="ghost">Rebuild performance</button>
+              <span class="badge-mini">Uses daily adjusted closes</span>
+            </div>
+          </div>
+          <canvas id="perfChart"></canvas>
+          <div class="footer-note" style="margin-top:8px;">
+            Performance includes cash and holdings. Transactions on non-trading days are applied on the next market day.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div style="margin-top:24px;" class="footer-note">
+      Tip: Save your API key and transactions are stored locally in your browser (localStorage). Export by copying this file’s data via DevTools if needed.
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // --- Utilities & Persistence -------------------------------------------------
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const fmt = (n, p=2) => n.toLocaleString(undefined, {minimumFractionDigits:p, maximumFractionDigits:p});
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+    const store = {
+      get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+      set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+    };
+
+    const STATE = {
+      apiKey: store.get('smsim_apiKey', ''),
+      startingCash: store.get('smsim_startingCash', 100000),
+      transactions: store.get('smsim_transactions', []), // {id, date, ticker, side, qty, price}
+      alerts: store.get('smsim_alerts', {}), // { TICKER: { above: number|null, below: number|null } }
+      watchlist: store.get('smsim_watchlist', ['AAPL','MSFT','GOOGL']),
+      cache: store.get('smsim_cache', {}) // simple cache map { url: { t: epoch, ttl: s, data } }
+    };
+
+    function persist() {
+      store.set('smsim_apiKey', STATE.apiKey);
+      store.set('smsim_startingCash', STATE.startingCash);
+      store.set('smsim_transactions', STATE.transactions);
+      store.set('smsim_alerts', STATE.alerts);
+      store.set('smsim_watchlist', STATE.watchlist);
+      store.set('smsim_cache', STATE.cache);
+    }
+
+    // --- Alpha Vantage fetch with caching ---------------------------------------
+    async function cachedFetch(url, ttlSec) {
+      const now = Date.now();
+      const cacheEntry = STATE.cache[url];
+      if (cacheEntry && (now - cacheEntry.t) < ttlSec * 1000) {
+        return cacheEntry.data;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      STATE.cache[url] = { t: now, ttl: ttlSec, data };
+      persist();
+      return data;
+    }
+
+    function avUrl(functionName, params={}) {
+      const u = new URL('https://www.alphavantage.co/query');
+      u.searchParams.set('function', functionName);
+      for (const [k,v] of Object.entries(params)) u.searchParams.set(k, v);
+      u.searchParams.set('apikey', STATE.apiKey || 'demo'); // falls back to 'demo' key
+      return u.toString();
+    }
+
+    async function getGlobalQuote(ticker) {
+      const url = avUrl('GLOBAL_QUOTE', { symbol: ticker });
+      const data = await cachedFetch(url, 60); // 1 minute TTL
+      const q = data['Global Quote'] || {};
+      const price = parseFloat(q['05. price'] || '0');
+      const prevClose = parseFloat(q['08. previous close'] || '0');
+      const change = parseFloat(q['09. change'] || '0');
+      const changePct = parseFloat((q['10. change percent'] || '0').replace('%',''));
+      return { price, prevClose, change, changePct };
+    }
+
+    async function getDailyAdjusted(ticker, useFull=false) {
+      const url = avUrl('TIME_SERIES_DAILY_ADJUSTED', { symbol: ticker, outputsize: useFull ? 'full' : 'compact' });
+      const data = await cachedFetch(url, 60 * 60 * 20); // ~20h TTL
+      const series = data['Time Series (Daily)'] || {};
+      const arr = Object.entries(series)
+        .map(([date, o]) => ({
+          date,
+          open: parseFloat(o['1. open']),
+          high: parseFloat(o['2. high']),
+          low: parseFloat(o['3. low']),
+          close: parseFloat(o['4. close']),
+          adjClose: parseFloat(o['5. adjusted close']),
+          volume: parseFloat(o['6. volume'])
+        }))
+        .sort((a,b) => a.date.localeCompare(b.date));
+      return arr;
+    }
+
+    // --- Indicators --------------------------------------------------------------
+    function SMA(values, period) {
+      const out = new Array(values.length).fill(null);
+      let sum = 0;
+      for (let i=0; i<values.length; i++) {
+        sum += values[i];
+        if (i >= period) sum -= values[i - period];
+        if (i >= period - 1) out[i] = sum / period;
+      }
+      return out;
+    }
+
+    function RSI(values, period=14) {
+      const out = new Array(values.length).fill(null);
+      let gains = 0, losses = 0;
+      for (let i=1; i<values.length; i++) {
+        const change = values[i] - values[i-1];
+        const gain = change > 0 ? change : 0;
+        const loss = change < 0 ? -change : 0;
+        if (i <= period) {
+          gains += gain;
+          losses += loss;
+          if (i === period) {
+            const rs = (gains/period) / ((losses/period) || 1e-9);
+            out[i] = 100 - (100 / (1 + rs));
+          }
+        } else {
+          // Wilder's smoothing
+          gains = (gains * (period - 1) + gain) / period;
+          losses = (losses * (period - 1) + loss) / period;
+          const rs = (gains) / (losses || 1e-9);
+          out[i] = 100 - (100 / (1 + rs));
+        }
+      }
+      return out;
+    }
+
+    // --- State-derived helpers ---------------------------------------------------
+    function listTickersInPortfolio() {
+      const map = {};
+      for (const tx of STATE.transactions) {
+        const t = tx.ticker.toUpperCase();
+        if (!map[t]) map[t] = 0;
+        map[t] += (tx.side === 'BUY' ? 1 : -1) * Number(tx.qty);
+      }
+      return Object.entries(map).filter(([,qty]) => qty !== 0).map(([t]) => t);
+    }
+
+    function aggregateHoldings(latestPrices) {
+      const lots = {};
+      for (const tx of STATE.transactions) {
+        const t = tx.ticker.toUpperCase();
+        if (!lots[t]) lots[t] = { ticker: t, shares: 0, cost: 0, realizedPL: 0 };
+        const entry = lots[t];
+        const qty = Number(tx.qty);
+        const price = Number(tx.price);
+        if (tx.side === 'BUY') {
+          // average cost basis
+          const totalCost = entry.cost * entry.shares + price * qty;
+          entry.shares += qty;
+          entry.cost = entry.shares > 0 ? (totalCost / entry.shares) : 0;
+        } else if (tx.side === 'SELL') {
+          const sellQty = Math.min(qty, entry.shares);
+          const pl = (price - entry.cost) * sellQty;
+          entry.realizedPL += pl;
+          entry.shares -= sellQty;
+          if (entry.shares === 0) entry.cost = 0; // reset
+        }
+      }
+      // compute current value and unrealized PL
+      const rows = [];
+      for (const t of Object.keys(lots).sort()) {
+        const e = lots[t];
+        const price = latestPrices[t]?.price || e.cost || 0;
+        const value = e.shares * price;
+        const unrealPL = (price - e.cost) * e.shares;
+        const totalPL = e.realizedPL + unrealPL;
+        const plPct = (e.cost > 0) ? (price / e.cost - 1) * 100 : 0;
+        rows.push({ ...e, price, value, unrealPL, totalPL, plPct });
+      }
+      return rows;
+    }
+
+    function computeCashBalance() {
+      let cash = Number(STATE.startingCash) || 0;
+      for (const tx of STATE.transactions) {
+        const amt = Number(tx.qty) * Number(tx.price);
+        cash += (tx.side === 'SELL' ? amt : -amt);
+      }
+      return cash;
+    }
+
+    function currency(v) {
+      return '$' + fmt(v);
+    }
+
+    // --- UI rendering ------------------------------------------------------------
+    let pieAllocChart = null;
+    let priceChart = null;
+    let perfChart = null;
+
+    async function refreshAll() {
+      // Populate API key and starting cash fields
+      $('#apiKey').value = STATE.apiKey || '';
+      $('#startingCash').value = STATE.startingCash;
+
+      // Watchlist table
+      await renderWatchlist();
+
+      // Latest prices for holdings
+      const holdingTickers = listTickersInPortfolio();
+      const latest = {};
+      await Promise.all(holdingTickers.map(async t => { latest[t] = await getGlobalQuote(t); }));
+
+      // Holdings table + allocation
+      renderHoldings(latest);
+
+      // Stats
+      const equity = Object.values(latest).reduce((sum, q, i) => sum, 0);
+      const holdingsRows = aggregateHoldings(latest);
+      const equityVal = holdingsRows.reduce((s, r) => s + r.value, 0);
+      const cash = computeCashBalance();
+      const total = cash + equityVal;
+      const plAbs = total - STATE.startingCash;
+      const plPct = (STATE.startingCash > 0) ? (plAbs / STATE.startingCash) * 100 : 0;
+      $('#statStartCash').textContent = currency(STATE.startingCash);
+      $('#statCash').textContent = currency(cash);
+      $('#statEquity').textContent = currency(equityVal);
+      $('#statTotal').textContent = currency(total);
+      $('#statPL').innerHTML = `<span class="${plAbs >= 0 ? 'green' : 'red'}">${currency(plAbs)} (${fmt(plPct)}%)</span>`;
+
+      // Transactions table
+      renderTransactions();
+
+      // Chart ticker dropdown
+      renderChartTickerOptions();
+
+      // Alerts
+      evaluateAlerts([...holdingTickers, ...STATE.watchlist]);
+    }
+
+    async function renderWatchlist() {
+      const tbody = $('#watchTable tbody');
+      tbody.innerHTML = '';
+      for (const t of STATE.watchlist) {
+        try {
+          const q = await getGlobalQuote(t);
+          const changeCls = q.change >= 0 ? 'green' : 'red';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="pill">${t}</span></td>
+            <td class="num">${q.price ? currency(q.price) : '—'}</td>
+            <td class="num ${changeCls}">${q.change ? currency(q.change) : '—'}</td>
+            <td class="num ${changeCls}">${isFinite(q.changePct) ? fmt(q.changePct) + '%' : '—'}</td>
+            <td class="num">
+              <button class="ghost" data-rm="${t}">Remove</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        } catch (e) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="pill">${t}</span></td>
+            <td colspan="4" class="muted">Error loading quote</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+      // remove handlers
+      $$('#watchTable [data-rm]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-rm');
+          STATE.watchlist = STATE.watchlist.filter(x => x !== t);
+          persist();
+          renderWatchlist();
+        });
+      });
+    }
+
+    function renderHoldings(latest) {
+      const tbody = $('#holdingsTable tbody');
+      tbody.innerHTML = '';
+      const rows = aggregateHoldings(latest);
+      let allocLabels = [];
+      let allocValues = [];
+      for (const r of rows) {
+        const plCls = r.totalPL >= 0 ? 'green' : 'red';
+        const pctCls = r.plPct >= 0 ? 'green' : 'red';
+        const alert = STATE.alerts[r.ticker] || { above: null, below: null };
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="pill">${r.ticker}</span></td>
+          <td class="num">${fmt(r.shares, 0)}</td>
+          <td class="num">${r.price ? currency(r.price) : '—'}</td>
+          <td class="num">${currency(r.value)}</td>
+          <td class="num">${r.cost ? currency(r.cost) : '—'}</td>
+          <td class="num ${plCls}">${currency(r.totalPL)}</td>
+          <td class="num ${pctCls}">${fmt(r.plPct)}%</td>
+          <td class="num">
+            <div class="inline nowrap">
+              <input type="number" step="0.01" placeholder="Above" style="width:90px" data-alert-above="${r.ticker}" value="${alert.above ?? ''}">
+              <input type="number" step="0.01" placeholder="Below" style="width:90px" data-alert-below="${r.ticker}" value="${alert.below ?? ''}">
+              <button class="ghost" data-save-alert="${r.ticker}">Set</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        if (r.value > 0) {
+          allocLabels.push(r.ticker);
+          allocValues.push(r.value);
+        }
+      }
+      // pie chart
+      if (pieAllocChart) pieAllocChart.destroy();
+      const ctx = document.getElementById('pieAlloc');
+      pieAllocChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: allocLabels,
+          datasets: [{
+            data: allocValues,
+            backgroundColor: allocLabels.map((_, i) => `hsl(${(i*57)%360} 70% 45%)`),
+            borderColor: '#0b0d12',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          plugins: { legend: { labels: { color: '#cbd5e1' } } }
+        }
+      });
+
+      // alert set handlers
+      $$('#holdingsTable [data-save-alert]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-save-alert');
+          const aboveEl = $(`[data-alert-above="${t}"]`);
+          const belowEl = $(`[data-alert-below="${t}"]`);
+          const above = aboveEl.value ? Number(aboveEl.value) : null;
+          const below = belowEl.value ? Number(belowEl.value) : null;
+          STATE.alerts[t] = { above, below };
+          persist();
+          flashMessage(`Alerts updated for ${t} (above: ${above ?? '—'}, below: ${below ?? '—'})`);
+        });
+      });
+    }
+
+    function renderTransactions() {
+      const tbody = $('#txTable tbody');
+      tbody.innerHTML = '';
+      const rows = [...STATE.transactions].sort((a,b) => a.date.localeCompare(b.date));
+      for (const tx of rows) {
+        const val = Number(tx.qty) * Number(tx.price) * (tx.side === 'BUY' ? -1 : 1);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${tx.date}</td>
+          <td><span class="pill">${tx.ticker}</span></td>
+          <td>${tx.side}</td>
+          <td class="num">${fmt(tx.qty, 0)}</td>
+          <td class="num">${currency(tx.price)}</td>
+          <td class="num ${val>=0?'green':'red'}">${currency(val)}</td>
+          <td class="num"><button class="danger" data-del="${tx.id}">Delete</button></td>
+        `;
+        tbody.appendChild(tr);
+      }
+      $$('#txTable [data-del]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-del');
+          STATE.transactions = STATE.transactions.filter(t => t.id !== id);
+          persist();
+          refreshAll();
+        });
+      });
+    }
+
+    function renderChartTickerOptions() {
+      const tickers = Array.from(new Set([...STATE.watchlist, ...listTickersInPortfolio()])).sort();
+      const sel = $('#chartTicker');
+      sel.innerHTML = tickers.map(t => `<option value="${t}">${t}</option>`).join('');
+      $('#chartInfo').textContent = tickers.length ? 'Ready' : 'No tickers';
+    }
+
+    // --- Alerts -----------------------------------------------------------------
+    function flashMessage(msg) {
+      const el = $('#alertBox');
+      el.textContent = msg;
+      el.style.display = 'block';
+      el.style.opacity = 1;
+      // Simple beep
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + 0.02);
+        o.start();
+        setTimeout(() => { g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15); o.stop(ctx.currentTime + 0.15); }, 140);
+      } catch {}
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.6s';
+        el.style.opacity = 0;
+        setTimeout(() => { el.style.display = 'none'; el.style.transition = ''; }, 700);
+      }, 4000);
+    }
+
+    async function evaluateAlerts(tickers) {
+      for (const t of tickers) {
+        const cfg = STATE.alerts[t];
+        if (!cfg) continue;
+        const q = await getGlobalQuote(t);
+        if (cfg.above && q.price >= cfg.above) {
+          flashMessage(`${t} crossed above ${currency(cfg.above)} (now ${currency(q.price)})`);
+          // One-shot: clear above after trigger
+          STATE.alerts[t].above = null;
+        }
+        if (cfg.below && q.price <= cfg.below) {
+          flashMessage(`${t} crossed below ${currency(cfg.below)} (now ${currency(q.price)})`);
+          STATE.alerts[t].below = null;
+        }
+      }
+      persist();
+    }
+
+    // --- Charts -----------------------------------------------------------------
+    async function loadPriceChart(ticker) {
+      $('#chartInfo').textContent = 'Loading...';
+      const data = await getDailyAdjusted(ticker, true);
+      const labels = data.map(d => d.date);
+      const closes = data.map(d => d.adjClose || d.close);
+      const sma50 = SMA(closes, 50);
+      const sma200 = SMA(closes, 200);
+      const rsi = RSI(closes, 14);
+
+      if (priceChart) priceChart.destroy();
+      const ctx = document.getElementById('priceChart');
+      priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: `${ticker} adj close`, data: closes, borderColor: '#5cc8ff', tension: 0.2, pointRadius: 0 },
+            { label: 'SMA 50', data: sma50, borderColor: '#ffd166', tension: 0.2, pointRadius: 0 },
+            { label: 'SMA 200', data: sma200, borderColor: '#c3f53b', tension: 0.2, pointRadius: 0 },
+          ]
+        },
+        options: {
+          scales: {
+            x: { ticks: { color: '#9fb0cc', maxTicksLimit: 8 }, grid: { color: '#182238' } },
+            y: { ticks: { color: '#9fb0cc' }, grid: { color: '#182238' } }
+          },
+          plugins: { legend: { labels: { color: '#cbd5e1' } } }
+        }
+      });
+
+      // AI-style insight
+      const last = closes.length - 1;
+      const price = closes[last];
+      const s50 = sma50[last];
+      const s200 = sma200[last];
+      const rsiVal = rsi[last] || rsi[last-1] || null;
+
+      const lines = [];
+      if (s50 && s200) {
+        const trend = s50 > s200 ? 'uptrend' : 'downtrend';
+        lines.push(`Trend: ${s50 > s200 ? 'Bullish' : 'Bearish'} (${trend} via SMA 50/200).`);
+        const crossNow = sma50[last] && sma200[last] && Math.sign(sma50[last] - sma200[last]) !== Math.sign(sma50[last-1] - sma200[last-1]);
+        if (crossNow) lines.push('Signal: Recent moving-average cross detected.');
+      }
+      if (price && s50) {
+        const dist = ((price / s50) - 1) * 100;
+        lines.push(`Price vs SMA50: ${dist >= 0 ? '+' : ''}${fmt(dist)}%.`);
+      }
+      if (rsiVal) {
+        lines.push(`RSI(14): ${fmt(rsiVal)} ${rsiVal >= 70 ? '(overbought?)' : rsiVal <= 30 ? '(oversold?)' : ''}`);
+      }
+      $('#aiInsight').innerHTML = lines.join(' ');
+
+      $('#chartInfo').textContent = `${ticker} · ${labels[0]} → ${labels[labels.length-1]}`;
+    }
+
+    async function rebuildPerformanceChart() {
+      const txs = [...STATE.transactions].sort((a,b) => a.date.localeCompare(b.date));
+      if (!txs.length) {
+        if (perfChart) perfChart.destroy();
+        const ctx = document.getElementById('perfChart');
+        perfChart = new Chart(ctx, { type:'line', data:{ labels:[], datasets:[{label:'Total value', data:[]}]}, options:{} });
+        return;
+      }
+
+      // Tickers and historical data
+      const tickers = Array.from(new Set(txs.map(t => t.ticker.toUpperCase())));
+      const hist = {};
+      for (const t of tickers) hist[t] = await getDailyAdjusted(t, true);
+
+      // Build a sorted list of trading dates (union)
+      const dateSet = new Set();
+      for (const t of tickers) hist[t].forEach(d => dateSet.add(d.date));
+      const dates = Array.from(dateSet).sort((a,b) => a.localeCompare(b));
+
+      // Map date->price for quick lookup (adjClose)
+      const priceAt = {};
+      for (const t of tickers) {
+        priceAt[t] = {};
+        for (const d of hist[t]) priceAt[t][d.date] = d.adjClose || d.close;
+      }
+
+      // Apply transactions on or after their date (next available market date)
+      const txQueue = txs.map(t => ({...t}));
+      let holdings = {}; // ticker -> shares
+      let cash = Number(STATE.startingCash) || 0;
+
+      const series = [];
+      for (const date of dates) {
+        // apply any tx whose date <= current date AND not yet applied
+        for (const tx of txQueue.filter(x => !x.applied && x.date <= date)) {
+          tx.applied = true;
+          const t = tx.ticker.toUpperCase();
+          const qty = Number(tx.qty);
+          const price = Number(tx.price);
+          if (!holdings[t]) holdings[t] = 0;
+          if (tx.side === 'BUY') {
+            holdings[t] += qty;
+            cash -= qty * price;
+          } else {
+            const sellQty = Math.min(qty, holdings[t]);
+            holdings[t] -= sellQty;
+            cash += sellQty * price;
+          }
+        }
+        // compute equity value for this date (use price if exists, else 0)
+        let equity = 0;
+        for (const [t, sh] of Object.entries(holdings)) {
+          const p = priceAt[t][date];
+          if (p) equity += sh * p;
+        }
+        series.push({ date, total: cash + equity });
+      }
+
+      if (perfChart) perfChart.destroy();
+      const ctx = document.getElementById('perfChart');
+      perfChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: series.map(s => s.date),
+          datasets: [
+            {
+              label: 'Total value',
+              data: series.map(s => s.total),
+              borderColor: '#5cc8ff',
+              backgroundColor: 'rgba(92,200,255,0.12)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          scales: {
+            x: { ticks: { color: '#9fb0cc', maxTicksLimit: 8 }, grid: { color: '#182238' } },
+            y: { ticks: { color: '#9fb0cc' }, grid: { color: '#182238' } }
+          },
+          plugins: { legend: { labels: { color: '#cbd5e1' } } }
+        }
+      });
+    }
+
+    // --- Event handlers ----------------------------------------------------------
+    function setupEvents() {
+      // Save key
+      $('#saveKeyBtn').addEventListener('click', () => {
+        STATE.apiKey = $('#apiKey').value.trim();
+        persist();
+        flashMessage('API key saved');
+        refreshAll();
+      });
+
+      // Starting cash
+      $('#startingCash').addEventListener('change', () => {
+        const v = Number($('#startingCash').value);
+        STATE.startingCash = isFinite(v) ? v : STATE.startingCash;
+        persist();
+        refreshAll();
+      });
+
+      // Add to watchlist
+      $('#addWatchBtn').addEventListener('click', () => {
+        const t = $('#watchTicker').value.trim().toUpperCase();
+        if (!t) return;
+        if (!STATE.watchlist.includes(t)) STATE.watchlist.push(t);
+        $('#watchTicker').value = '';
+        persist();
+        renderWatchlist();
+      });
+
+      // Refresh all prices
+      $('#refreshAllBtn').addEventListener('click', refreshAll);
+
+      // Fetch last close for ticker
+      $('#fetchLastBtn').addEventListener('click', async () => {
+        const t = $('#txTicker').value.trim().toUpperCase();
+        if (!t) return flashMessage('Enter a ticker first');
+        const data = await getDailyAdjusted(t, false);
+        if (!data.length) return flashMessage('No data found');
+        const last = data[data.length - 1];
+        $('#txPrice').value = last.adjClose || last.close;
+        if (!$('#txDate').value) $('#txDate').value = last.date;
+        flashMessage(`Filled price with last close on ${last.date}`);
+      });
+
+      // Add transaction
+      $('#addTxBtn').addEventListener('click', () => {
+        const ticker = $('#txTicker').value.trim().toUpperCase();
+        const side = $('#txSide').value;
+        const qty = Number($('#txQty').value);
+        const price = Number($('#txPrice').value);
+        const date = $('#txDate').value || new Date().toISOString().slice(0,10);
+        if (!ticker || !qty || !price) return flashMessage('Please fill ticker, qty, and price');
+        const id = Math.random().toString(36).slice(2);
+        STATE.transactions.push({ id, ticker, side, qty, price, date });
+        persist();
+        // Clear inputs
+        $('#txQty').value = '';
+        $('#txPrice').value = '';
+        $('#txTicker').value = '';
+        refreshAll();
+      });
+
+      // Chart actions
+      $('#loadChartBtn').addEventListener('click', async () => {
+        const t = $('#chartTicker').value;
+        if (!t) return;
+        await loadPriceChart(t);
+      });
+
+      // Performance
+      $('#rebuildPerfBtn').addEventListener('click', rebuildPerformanceChart);
+    }
+
+    // --- Auto update loop --------------------------------------------------------
+    async function autoLoop() {
+      // periodic refresh of quotes and alerts
+      try {
+        await refreshAll();
+      } catch {}
+      setTimeout(autoLoop, 60 * 1000); // every minute
+    }
+
+    // --- Init -------------------------------------------------------------------
+    (function init() {
+      // Pre-fill fields
+      $('#apiKey').value = STATE.apiKey || '';
+      $('#startingCash').value = STATE.startingCash;
+
+      // Default date to today
+      $('#txDate').value = new Date().toISOString().slice(0,10);
+
+      setupEvents();
+      refreshAll();
+      rebuildPerformanceChart();
+      autoLoop();
+    })();
+  </script>
+</body>
+</html>
